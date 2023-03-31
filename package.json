@@ -22,6 +22,7 @@
     "electron": "^23.1.4"
   },
   "dependencies": {
+    "electron-builder": "^24.1.2",
     "electron-context-menu": "^3.6.1",
     "electron-prompt": "^1.7.0",
     "electron-squirrel-startup": "^1.0.0",
