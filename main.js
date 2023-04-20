@@ -62,7 +62,6 @@ const createWindow = () => {
   const proxy = config.get('proxy');
 
   if (proxy) {
-    console.log(proxy);
     mainWindow.webContents.session.setProxy({ proxyRules: proxy });
     // app.commandLine.appendSwitch('proxy-server', proxy);
   }
@@ -112,10 +111,7 @@ const createWindow = () => {
         type: 'checkbox',
         checked: mainWindow.isAlwaysOnTop() ? true : false,
         visible: parameters.selectionText.trim().length === 0,
-        click: () => {
-          config.set('alwaysOnTop', !mainWindow.isAlwaysOnTop());
-          mainWindow.setAlwaysOnTop(!mainWindow.isAlwaysOnTop());
-        },
+        click: () => alwaysOnTopHandler(),
       },
       {
         type: 'separator',
@@ -202,14 +198,11 @@ const createWindow = () => {
         visible: parameters.selectionText.trim().length === 0,
         click: () => {
           const session = mainWindow.webContents.session;
-          config.set('proxy', '');
-          session
-            .clearStorageData({
-              storages: [],
-            })
-            .then(() => {
-              mainWindow.reload();
-            });
+          session.clearCache();
+          session.clearAuthCache();
+          session.clearStorageData().then(() => {
+            mainWindow.reload();
+          });
         },
       },
       {
@@ -267,11 +260,16 @@ const createWindow = () => {
     shell.openExternal(url);
     return { action: 'deny' };
   });
-  // Check if user is logged in successfully
+  // Login
   mainWindow.webContents.on('will-redirect', (event, url) => {
     if (url.indexOf('https://edgeservices.bing.com/edgesvc/urlredirect') !== -1) {
       event.preventDefault();
-      mainWindow.loadURL(bingUrl);
+      // Get cookies
+      mainWindow.loadURL(bingUrl.replace('edgediscover/query', 'edgesvc/shell')).then(() => {
+        setTimeout(() => {
+          mainWindow.loadURL(bingUrl);
+        }, 3000);
+      });
     }
   });
   // Modify Content Security Policy
@@ -292,10 +290,16 @@ const createWindow = () => {
   });
   // Modify headers
   mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
-    details.requestHeaders['user-agent'] = userAgent;
-    details.requestHeaders['x-forwarded-for'] = '1.1.1.1';
+    details.requestHeaders['User-Agent'] = userAgent;
+    details.requestHeaders['X-Forwarded-For'] = '1.1.1.1';
     callback({ requestHeaders: details.requestHeaders, cancel: false });
   });
+
+  // Always on top
+  const alwaysOnTopHandler = () => {
+    config.set('alwaysOnTop', !mainWindow.isAlwaysOnTop());
+    mainWindow.setAlwaysOnTop(!mainWindow.isAlwaysOnTop());
+  };
   // Theme
   const themeHandler = newTheme => {
     config.set('theme', newTheme);
@@ -335,6 +339,61 @@ const createWindow = () => {
     config.set('fontSize', newSize);
     mainWindow.webContents.send('set-font-size', newSize);
   };
+
+  // Shortcuts
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    const cmdKey = process.platform === 'darwin' ? input.meta : input.control;
+    if (cmdKey) {
+      switch (input.code) {
+        case 'KeyN':
+          mainWindow.webContents.send('new-topic');
+          event.preventDefault();
+          break;
+        case 'KeyR':
+          mainWindow.reload();
+          event.preventDefault();
+          break;
+        case 'KeyT':
+          alwaysOnTopHandler();
+          event.preventDefault();
+          break;
+        case 'KeyI':
+          mainWindow.webContents.send('focus-on-textarea');
+          event.preventDefault();
+          break;
+        case 'KeyS':
+          mainWindow.webContents.send('stop-responding');
+          event.preventDefault();
+          break;
+        case 'Equal':
+          if (configSchema.fontSize.enum.indexOf(config.get('fontSize') + 2) !== -1) {
+            fontSizeHandler(config.get('fontSize') + 2);
+            event.preventDefault();
+          }
+          break;
+        case 'Minus':
+          if (configSchema.fontSize.enum.indexOf(config.get('fontSize') - 2) !== -1) {
+            fontSizeHandler(config.get('fontSize') - 2);
+            event.preventDefault();
+          }
+          break;
+        case 'Comma':
+          mainWindow.webContents.send('switch-tone', 'left');
+          event.preventDefault();
+          break;
+        case 'Period':
+          mainWindow.webContents.send('switch-tone', 'right');
+          event.preventDefault();
+          break;
+        default:
+          if (input.code.indexOf('Digit') === 0) {
+            const id = input.code.split('Digit')[1];
+            mainWindow.webContents.send('quick-reply', Number(id));
+            event.preventDefault();
+          }
+      }
+    }
+  });
 };
 
 app.whenReady().then(() => {
