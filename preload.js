@@ -34,6 +34,10 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     if (joinLink) {
       joinLink.setAttribute('target', '_self')
+      joinLink.setAttribute(
+        'href',
+        'https://www.bing.com/rewards/authcheck?ru=%2Fmsrewards%2Fapi%2Fv1%2Fenroll%3Fpubl%3DBINGIP%26crea%3DMY00IA%26pn%3Dbingcopilotwaitlist%26partnerId%3DBingRewards%26pred%3Dtrue%26wtc%3Dshoreline/discover%26ru%3Dhttps%253a%252f%252fedgeservices.bing.com%252fedgesvc%252furlredirect%253fscenario%253dwaitlist'
+      )
     }
     if (previewBanner) {
       previewBanner.style.cssText = 'margin-top: 44px'
@@ -65,14 +69,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (insightsTab) {
       insightsTab.style.cssText = 'display: none'
     }
-    // Error
-    if (!previewBanner && !tabs) {
-      const errorInfo = document.createElement('p')
-      errorInfo.textContent = 'Not Available'
-      errorInfo.style.cssText =
-        'padding: 64px 32px; text-align: center; font-size: 20px; font-weight: 600; line-height: 26px;'
-      content.insertBefore(errorInfo, content.firstChild)
-    }
   }
   // Chat area of main page
   const results = document.getElementById('b_results')
@@ -83,14 +79,14 @@ window.addEventListener('DOMContentLoaded', () => {
       chatWrapper.style.cssText = 'margin-top: -76px'
     }
     if (serp) {
-      ipcRenderer.send('get-font-size')
+      ipcRenderer.send('init-style')
     }
   }
   // Compose page
   const composeWrapper = document.getElementsByClassName(
     'uds_coauthor_wrapper'
   )[0]
-  const composeMain = document.getElementsByClassName('main')[0]
+  const composeMain = document.getElementsByClassName('sidebar')[0]
   const insertBtn = document.getElementById('insert_button')
   const previewText = document.getElementById('preview_text')
   const previewOptions = document.getElementsByClassName('preview-options')[0]
@@ -98,8 +94,7 @@ window.addEventListener('DOMContentLoaded', () => {
     composeWrapper.style.cssText = 'margin-top: -64px'
   }
   if (composeMain) {
-    composeMain.style.cssText =
-      'height: calc(100% - 64px); margin-top: 64px; padding: 20px 10px'
+    composeMain.style.cssText = 'height: calc(100% - 64px); margin-top: 64px'
   }
   if (insertBtn) {
     insertBtn.style.cssText = 'display: none'
@@ -112,21 +107,135 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 })
 
+// New topic
+ipcRenderer.on('new-topic', () => {
+  try {
+    const newTopicBtn = document
+      .getElementsByTagName('cib-serp')[0]
+      .shadowRoot.getElementById('cib-action-bar-main')
+      .shadowRoot.querySelector('button[class="button-compose"]')
+    if (newTopicBtn) {
+      newTopicBtn.click()
+    }
+  } catch (err) {
+    console.log(err)
+  }
+})
+
+// Focus on textarea
+ipcRenderer.on('focus-on-textarea', () => {
+  try {
+    const textarea = document
+      .getElementsByTagName('cib-serp')[0]
+      .shadowRoot.getElementById('cib-action-bar-main')
+      .shadowRoot.getElementById('searchbox')
+    if (textarea) {
+      textarea.focus()
+    }
+  } catch (err) {
+    console.log(err)
+  }
+})
+
+// Stop responding
+ipcRenderer.on('stop-responding', () => {
+  try {
+    const stopBtn = document
+      .getElementsByTagName('cib-serp')[0]
+      .shadowRoot.getElementById('cib-action-bar-main')
+      .shadowRoot.querySelector('cib-typing-indicator')
+      .shadowRoot.getElementById('stop-responding-button')
+    if (stopBtn) {
+      stopBtn.click()
+    }
+  } catch (err) {
+    console.log(err)
+  }
+})
+
+// Quick reply
+ipcRenderer.on('quick-reply', (event, id) => {
+  try {
+    const suggestionReplies = document
+      .getElementsByTagName('cib-serp')[0]
+      .shadowRoot.getElementById('cib-conversation-main')
+      .shadowRoot.querySelector('cib-suggestion-bar')
+      .shadowRoot.querySelectorAll('cib-suggestion-item')
+    if (suggestionReplies) {
+      suggestionReplies[id - 1].shadowRoot.querySelector('button').click()
+    }
+  } catch (err) {
+    console.log(err)
+  }
+})
+
+// Switch tone
+ipcRenderer.on('switch-tone', (event, direction) => {
+  try {
+    const toneOptions = document
+      .getElementsByTagName('cib-serp')[0]
+      .shadowRoot.getElementById('cib-conversation-main')
+      .shadowRoot.querySelector('cib-tone-selector')
+      .shadowRoot.getElementById('tone-options')
+    if (toneOptions) {
+      const toneBtns = toneOptions.querySelectorAll('button')
+      const selectedBtn = toneOptions.querySelector('button[selected]')
+      let index = Array.from(toneBtns).indexOf(selectedBtn)
+      switch (direction) {
+        case 'right':
+          if (index === toneBtns.length - 1) {
+            index = 0
+          } else {
+            index++
+          }
+          break
+        case 'left':
+          if (index === 0) {
+            index = toneBtns.length - 1
+          } else {
+            index--
+          }
+      }
+      toneBtns[index].click()
+    }
+  } catch (err) {
+    console.log(err)
+  }
+})
+
 // Set font size
 ipcRenderer.on('set-font-size', (event, size) => {
   try {
-    const serp = document.getElementsByTagName('cib-serp')
-    if (serp) {
-      const conversationMain = document
-        .getElementsByTagName('cib-serp')[0]
-        .shadowRoot.getElementById('cib-conversation-main')
-      conversationMain.style.cssText += `--cib-type-body1-font-size: ${size}px; --cib-type-body1-strong-font-size: ${size}px; --cib-type-body2-font-size: ${size}px; --cib-type-body2-line-height: ${
-        size + 6
-      }px`
-      serp[0].style.cssText += `--cib-type-body2-font-size: ${
-        size > 15 ? size + 2 : 16
-      }px; --cib-type-body2-line-height: ${size > 15 ? size + 8 : 22}px`
-    }
+    const serp = document.querySelector('.cib-serp-main')
+    const conversationMain = serp.shadowRoot.getElementById(
+      'cib-conversation-main'
+    )
+    conversationMain.style.cssText += `--cib-type-body1-font-size: ${size}px; --cib-type-body1-strong-font-size: ${size}px; --cib-type-body2-font-size: ${size}px; --cib-type-body2-line-height: ${
+      size + 6
+    }px`
+    serp.style.cssText += `--cib-type-body2-font-size: ${
+      size > 15 ? size + 2 : 16
+    }px; --cib-type-body2-line-height: ${size > 15 ? size + 8 : 22}px`
+  } catch (err) {
+    console.log(err)
+  }
+})
+
+// Set initial style
+ipcRenderer.on('set-initial-style', (event) => {
+  try {
+    const serp = document.querySelector('.cib-serp-main')
+    const conversationMain = serp.shadowRoot.getElementById(
+      'cib-conversation-main'
+    )
+    // Center element
+    const scroller = conversationMain.shadowRoot.querySelector('.scroller')
+    const actionBarMain = serp.shadowRoot.getElementById('cib-action-bar-main')
+    const containerControl =
+      conversationMain.shadowRoot.querySelector('.container-control')
+    scroller.style.cssText += 'justify-content: center'
+    actionBarMain.style.cssText += 'max-width: unset'
+    containerControl.style.cssText += 'flex-direction: column'
   } catch (err) {
     console.log(err)
   }
@@ -156,7 +265,8 @@ ipcRenderer.on('export', (event, format, isDarkMode) => {
           (element.classList.contains('label') ||
             element.classList.contains('hidden') ||
             element.classList.contains('expand-button') ||
-            element.getAttribute('type') === 'meta')
+            element.getAttribute('type') === 'meta' ||
+            element.tagName === 'CIB-TURN-COUNTER')
         ) {
           return true
         }
@@ -232,6 +342,16 @@ const markdownHandler = (element) => {
       return content
     },
   })
+  turndownService.addRule('learnMore', {
+    filter: (node) => {
+      return node.classList.contains('learn-more')
+    },
+    replacement: (content, node) => {
+      return node.parentNode.querySelector('a[class="attribution-item"]')
+        ? content
+        : ''
+    },
+  })
   turndownService.addRule('footerLink', {
     filter: (node) => {
       return node.classList.contains('attribution-item')
@@ -239,15 +359,31 @@ const markdownHandler = (element) => {
     replacement: (content, node) => {
       return `[${content.replace(/^(\d+)(\\.)/, '[$1]')}](${node.getAttribute(
         'href'
-      )} "${node.getAttribute('title')}")`
+      )} "${node.getAttribute('title').replace(/\"/g, '')}")`
     },
   })
   turndownService.addRule('userMessage', {
     filter: (node) => {
       return node.classList.contains('text-message-content')
     },
-    replacement: (content) => {
-      return `> **${content}**`
+    replacement: (content, node) => {
+      return `> **${node.firstElementChild.innerHTML}**`
+    },
+  })
+  turndownService.addRule('latex', {
+    filter: (node) => {
+      return node.classList.contains('katex-block')
+    },
+    replacement: (content, node) => {
+      return `$$${node.querySelector('annotation').innerHTML.trim()}$$\n\n`
+    },
+  })
+  turndownService.addRule('inlineLatex', {
+    filter: (node) => {
+      return node.classList.contains('katex')
+    },
+    replacement: (content, node) => {
+      return `$${node.querySelector('annotation').innerHTML.trim()}$`
     },
   })
   const mdDataURL = Buffer.from(
